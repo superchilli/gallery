@@ -13,36 +13,34 @@ from ..models import User, Role
 
 
 class SettingForm(Form):
-    name=StringField(u'姓名或昵称', validators=[Length(0, 64)])
-    status=StringField(u'签名档', validators=[Length(0, 64)])
-    location=StringField(u'城市', validators=[Length(0, 64)])
-    website=StringField(u'网站', validators=[Length(0, 64), Optional()
+    name=StringField('name', validators=[Length(0, 64)])
+    location=StringField('city', validators=[Length(0, 64)])
+    website=StringField('website', validators=[Length(0, 64), Optional()
                                            ], render_kw={"placeholder": "http://..."})
-    about_me=TextAreaField(u'关于我', render_kw={'rows': 8})
-    like_public=BooleanField(u'公开我的喜欢')
-    submit=SubmitField(u'提交')
+    about_me=TextAreaField('about me', render_kw={'rows': 8})
+    like_public=BooleanField('public my likes')
+    submit=SubmitField('submit')
 
     def validate_website(self, field):
         if field.data[:4] != "http":
             field.data="http://" + field.data
 
 class EditProfileAdminForm(Form):
-    email=StringField(u'邮箱', validators=[DataRequired(message=u'邮箱不能为空'), Length(1, 64),
-                                         Email(message=u'请输入有效的邮箱地址')])
-    username=StringField(u'用户名', validators=[DataRequired(message=u'用户名不能为空'), Length(1, 64),
+    email=StringField('email', validators=[DataRequired(), Length(1, 64),
+                                         Email(message='Please enter correct email')])
+    username=StringField('username', validators=[DataRequired(message='user name cannot be empty'), Length(1, 64),
                                              Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
-                                                    u'用户名只能由字母,'
-                                                    u'数字，点和下划线组成。')])
-    confirmed=BooleanField(u'确认状态')
-    role=SelectField(u'角色', coerce=int)
-    name=StringField(u'姓名或昵称', validators=[Length(0, 64)])
-    status=StringField(u'签名档', validators=[Length(0, 64)])
-    location=StringField(u'城市', validators=[Length(0, 64)])
-    website=StringField(u'网站', validators=[Length(0, 64), Optional()
+                                                    'username can only use, letters '
+                                                    'numbers, dot and slash.')])
+    confirmed=BooleanField('Comfirm')
+    role=SelectField('Role', coerce=int)
+    name=StringField('name', validators=[Length(0, 64)])
+    location=StringField('city', validators=[Length(0, 64)])
+    website=StringField('website', validators=[Length(0, 64), Optional()
                                            ], render_kw={"placeholder": "http://..."})
-    about_me=TextAreaField(u'关于我', render_kw={'rows': 8})
-    like_public=BooleanField(u'公开我的喜欢')
-    submit=SubmitField(u'提交')
+    about_me=TextAreaField('about me', render_kw={'rows': 8})
+    like_public=BooleanField('public my likes')
+    submit=SubmitField('submit')
 
     def __init__(self, user, *args, **kwargs):
         super(EditProfileAdminForm, self).__init__(*args, **kwargs)
@@ -53,41 +51,23 @@ class EditProfileAdminForm(Form):
     def validate_email(self, field):
         if field.data != self.user.email and \
                 User.query.filter_by(email=field.data).first():
-            raise ValidationError(u'该邮箱已经注册')
+            raise ValidationError('This email has been used.')
 
     def validate_username(self, field):
         if field.data != self.user.username and \
                 User.query.filter_by(username=field.data).first():
-            raise ValidationError(u'该用户名已注册')
+            raise ValidationError('The username has been used.')
 
 class CommentForm(Form):
-    body=TextAreaField(u'留言', validators=[DataRequired(message=u'内容不能为空')],render_kw={'rows':5})
-    submit=SubmitField(u'提交')
+    body=TextAreaField('Comment', validators=[DataRequired(message='Content cannot be empty')],render_kw={'rows':5})
+    submit=SubmitField('Submit')
 
-class NewAlbumForm(Form):
-    title=StringField(u'标题')
-    about=TextAreaField(u'介绍', render_kw={'rows': 8})
-    photo=FileField(u'图片', validators=[FileRequired(u'你还没有选择图片'),
-                                       FileAllowed(photos, u'只能上传图片')])
-    asc_order=SelectField(u'显示顺序',
-                          choices=[('True', u'按上传时间倒序排列'), ('False', u'按上传时间倒序排列')])
-    no_public=BooleanField(u'私密相册（勾选后相册仅自己可见）')
-    no_comment=BooleanField(u'禁止评论')
-    submit=SubmitField(u'提交')
 
 class AddPhotoForm(Form):
-    photo = FileField(u'图片', validators=[FileRequired(),
-                                         FileAllowed(photos, u'只能上传图片')])
-    submit=SubmitField(u'提交')
+    photo = FileField('Photo', validators=[FileRequired(),
+                                         FileAllowed(photos, 'only photo files allowed')])
+    submit=SubmitField('Submit')
 
-class EditAlbumForm(Form):
-    title=StringField(u'标题')
-    about = TextAreaField(u'介绍', render_kw={'rows': 8})
-    asc_order=SelectField(u'显示顺序',
-                          choices=[('True', u'按上传时间倒序排列'), ('False', u'按上传时间倒序排列')])
-    no_public=BooleanField(u'私密相册（勾选后相册仅自己可见）')
-    no_comment=BooleanField(u'禁止评论')
-    submit=SubmitField(u'提交')
 
 
 

@@ -14,7 +14,7 @@ from . import login_manager
 class Permission:
     FOLLOW = 0x01
     COMMENT = 0x02
-    CREATE_ALBUMS = 0x04
+    UPLOAD_PHOTOS = 0x04
     MODERATE_COMMENTS = 0x08
     ADMINISTER = 0x80
 
@@ -31,10 +31,10 @@ class Role(db.Model):
         roles = {
             'User': (Permission.FOLLOW |
                      Permission.COMMENT |
-                     Permission.CREATE_ALBUMS, True),
+                     Permission.UPLOAD_PHOTOS, True),
             'Moderator': (Permission.FOLLOW |
                           Permission.COMMENT |
-                          Permission.CREATE_ALBUMS |
+                          Permission.UPLOAD_PHOTOS |
                           Permission.MODERATE_COMMENTS, False),
             'Administrator': (0xff, False)
         }
@@ -58,13 +58,6 @@ class LikePhoto(db.Model):
                                primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow())
 
-class LikeAlbum(db.Model):
-    __tablename__='likealbum'
-    like_album_id = db.Column(db.Integer, db.ForeignKey('albums.id'),
-                              primary_key=True)
-    album_liked_id = db.Column(db.Integer, db.ForeignKey('users.id'),
-                               primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow())
 
 class Follow(db.Model):
     __tablename__='follows'
@@ -84,7 +77,6 @@ class Photo(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow())
     order = db.Column(db.Integer)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    album_id = db.Column(db.Integer, db.ForeignKey('albums.id'))
     photo_liked = db.relationship('LikePhoto', foreigin_keys=[LikePhoto.like_photo_id],
                                   backref=db.backref('like_photo', lazy='joined'),
                                   lazy='dynamic', cascade='all, delete-orphan')
@@ -93,28 +85,6 @@ class Photo(db.Model):
     def is_liked_by(self, user):
         return self.photo_liked.filter_by(
             photo_liked_id=user.id).first() is not None
-
-class Album(db.Model):
-    __tablename__='albums'
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(64))
-    about = db.Column(db.Text)
-    cover = db.Column(db.String(64))
-    type = db.Column(db.Integer, default=0)
-    tag = db.Column(db.String(64))
-    no_public = db.Column(db.Boolean, default=True)
-    no_comment = db.Column(db.Boolean, default=True)
-    asc_order = db.Column(db.Boolean, default=True)
-    timestamp =db.Column(db.DateTime, index=True, default=datetime.utcnow())
-    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    photos =db.relationship('Photo', backref='album', lazy='dynamic')
-    album_liked = db.relationship('LikeAlbum', foreign_keys=[LikeAlbum.like_album_id],
-                                  backref=db.backref('like_album', lazy='joined'),
-                                  lazy='dynamic', cascade='all, delete-orphan')
-
-    def is_liked_by(self, user):
-        return self.album_liked.filter_by(
-            album_liked_id=user.id).first() is not None
 
 class Comment(db.Model):
     __tablename__='comments'
@@ -125,21 +95,12 @@ class Comment(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
 
-class Message(db.Model):
-    __tablename__='messages'
-    id = db.Column(db.Integer, primary_key=True)
-    body = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow())
-    disabled=db.Column(db.Boolean)
-    author_id=db.Column(db.Integer, db.ForeignKey('users.id'))
-    user_id=db.Column(db.Integer, db.ForeignKey('users.id'))
 
 class User(UserMixin, db.Model):
     __tablename__='users'
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(64), index=True, unique=True)
     username = db.Column(db.String(64), index=True, unique=True)
-    status=db.Column(db.String(64))
     liked=db.Column(db.Integer, default=0)
     password_hash=db.Column(db.String(64))
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
@@ -153,16 +114,10 @@ class User(UserMixin, db.Model):
     member_since=db.Column(db.DateTime, default=datetime.utcnow())
     last_seen=db.Column(db.DateTime, default=datetime.utcnow())
     avatar_hash=db.Column(db.String(32))
-    albums=db.relationship('Album', backref='author', lazy='dynamic')
     photos=db.relationship('Photo', backref='author', lazy='dynamic')
     comments=db.relationship('Comment', backref='author', lazy='dynamic')
-    messages=db.relationship('Message', backref='user', lazy='dynamic', foreign_keys='[Message.user_id]')
-    message_from=db.relationship('Message', backref='author', lazy='dynamic', foreign_keys='[Message.author_id]')
     photo_likes=db.relationship('LikePhoto', foreign_keys=[LikePhoto.photo_liked_id],
                                 backref=db.backref('photo_liked', lazy='joined'),
-                                lazy='dynamic', cascade='all delete-orphan')
-    album_likes=db.relationship('LikeAlbum', foreign_keys=[LikeAlbum.album_liked_id],
-                                backref=db.backref('album_liked', lazy='joined'),
                                 lazy='dynamic', cascade='all delete-orphan')
     followers=db.relationship('Follow', foreign_keys=[Follow.followed_id],
                               backref=db.backref('followed', lazy='joined'),
@@ -277,27 +232,13 @@ class User(UserMixin, db.Model):
             p = LikePhoto(photo_liked=self, like_photo=photo)
             db.session.add(p)
 
-    def like_album(self, album):
-        if not self.is_like_album(album):
-            a = LikeAlbum(album_liked=self, like_album=album)
-            db.session.add(a)
-
     def unlike_photo(self, photo):
         p = self.photo_likes.filter_by(like_photo_id=photo.id).first()
         if p:
             db.session.delete(p)
 
-    def unlike_album(self, album):
-        a = self.album_likes.filter_by(like_album_id=album.id).first()
-        if a:
-            db.session.delete(a)
-
-
     def is_like_photo(self, photo):
         return self.photo_likes.filter_by(like_photo_id=photo.id).first() is not None
-
-    def is_like_album(self, album):
-        return self.album_likes.filter_by(like_album_id=album.id).first() is not None
 
     @property
     def followed_photos(self):
@@ -306,7 +247,7 @@ class User(UserMixin, db.Model):
 
 
     def __repr__(self):
-        return '<Role %r>' % self.name
+        return '<Role %r>' % self.username
 
 
 class AnonymousUser(AnonymousUserMixin):
